@@ -2,7 +2,8 @@ import requests
 import hmac
 import hashlib
 import json
-import uuid
+import os
+import base64
 from django.conf import settings
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -10,212 +11,182 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from .models import KYCRequest
-import os
 from rest_framework.decorators import api_view
 
-# URLs de Didit
-DIDIT_AUTH_URL = "https://auth.didit.me/oauth/token"
-DIDIT_SESSION_URL = "https://verification.didit.me/v1/session"  # Sin barra final
+# URLs base de Didit
+BASE_URL = "https://api.didit.me"
+AUTH_URL = "https://apx.didit.me/auth/v2/token/"
 
-# Obtener el token de acceso de Didit
-def obtener_token_acceso():
-    datos = {
-        "client_id": settings.DIDIT_CLIENT_ID,
-        "client_secret": settings.DIDIT_CLIENT_SECRET,
-        "grant_type": "client_credentials"
-    }
+def get_client_token():
+    """
+    Obtiene el token de acceso de Didit usando autenticación Basic.
+    """
     try:
-        respuesta = requests.post(DIDIT_AUTH_URL, json=datos)
-        respuesta.raise_for_status()
-        return respuesta.json().get("access_token")
+        credentials = f"{settings.DIDIT_CLIENT_ID}:{settings.DIDIT_CLIENT_SECRET}"
+        encoded_credentials = base64.b64encode(credentials.encode()).decode()
+
+        headers = {
+            "Authorization": f"Basic {encoded_credentials}",
+            "Content-Type": "application/x-www-form-urlencoded"
+        }
+
+        data = {"grant_type": "client_credentials"}
+
+        response = requests.post(AUTH_URL, headers=headers, data=data)
+
+        print(f"🔹 Token Request Status: {response.status_code}")
+        print(f"🔹 Token Response: {response.text[:500]}")  # Muestra parte de la respuesta
+
+        response.raise_for_status()
+        return response.json()
     except requests.exceptions.RequestException as error:
-        print(f"Error al obtener el token de cliente: {error}")
+        print(f"❌ Error obteniendo token de Didit: {error}")
         return None
 
-# Crear una sesión de verificación en Didit
+def create_session(features: str, callback: str, vendor_data: dict = None):
+    """
+    Crea una sesión de verificación KYC en Didit.
+    """
+    url = f"{BASE_URL}/v1/session/"
+    token_data = get_client_token()
+
+    if not token_data:
+        raise Exception("No se pudo obtener el token de acceso")
+
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {token_data.get('access_token')}"
+    }
+
+    body = {
+        "features": features,
+        "callback": callback,
+        "vendor_data": vendor_data or {}
+    }
+
+    response = requests.post(url, headers=headers, json=body)
+    
+    print(f"🔹 Creando sesión KYC en {url}")
+    print(f"🔹 Datos enviados: {json.dumps(body, indent=2)}")
+    print(f"🔹 Respuesta Status: {response.status_code}")
+    print(f"🔹 Respuesta: {response.text[:500]}")
+
+    response.raise_for_status()
+    return response.json()
+
 class DiditKYCAPIView(APIView):
     def post(self, request):
-        token = obtener_token_acceso()
-        if not token:
-            return Response({"error": "No se pudo obtener el token de acceso"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
+        """
+        Endpoint para crear una nueva sesión de verificación KYC en Didit.
+        """
         data = request.data
-        
-        # Validar campos requeridos para nuestro sistema
-        if not data.get("full_name") or not data.get("document_id"):
-            return Response(
-                {"error": "Se requieren los campos 'full_name' y 'document_id'"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
 
-        # Configurar URL de callback real
-        base_url = request.build_absolute_uri('/').rstrip('/')
-        callback_url = f"{base_url}/kyc/api/webhook/"
-        
-        # Construir vendor_data como objeto JSON según la documentación
+        if not data.get("full_name") or not data.get("document_id"):
+            return Response({"error": "Se requieren 'full_name' y 'document_id'"},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        callback_url = f"{os.getenv('TUNNEL_URL')}/kyc/api/webhook/"
+
         vendor_data = {
-            "customer_id": data.get("document_id"),
-            "full_name": data.get("full_name"),
-            "reference_id": str(uuid.uuid4())  # ID de referencia único
+            "reference_id": data.get("document_id"),
+            "customer_name": data.get("full_name")
         }
-        
-        # Parámetros adicionales según documentación
-        redirect_url = data.get("redirect_url")
-        locale = data.get("locale", "es")  # Según docs es 'locale', no 'language'
-        
-        # Guardar en la base de datos la solicitud
+
         kyc_request = KYCRequest.objects.create(
-            full_name=data.get("full_name"),
-            document_id=data.get("document_id"),
+            full_name=data["full_name"],
+            document_id=data["document_id"],
             status="pending"
         )
 
-        headers = {
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json"
-        }
-        
-        # Construir payload según documentación exacta
-        # https://docs.didit.me/identity-verification/api-reference/create-session
-        didit_data = {
-            "callback": callback_url,
-            "vendor_data": vendor_data,  # La API acepta un objeto JSON directo
-            "locale": locale
-        }
-        
-        # Agregar campos opcionales solo si están presentes
-        if redirect_url:
-            didit_data["redirect"] = redirect_url
-            
-        # "features" es opcional según la documentación
-        if "features" in data:
-            # Valores permitidos: FACE, OCR, NFC, LIVENESS (o combinaciones)
-            didit_data["features"] = data.get("features")
-
         try:
-            # Realizar la solicitud POST a la URL correcta
-            response = requests.post(DIDIT_SESSION_URL, json=didit_data, headers=headers)
-            response.raise_for_status()
-            session_data = response.json()
-            
-            # Actualizar registro con session_id
-            kyc_request.session_id = session_data.get("id")  # Según docs es 'id', no 'session_id'
+            session_result = create_session(
+                features=data.get("features", "FACE,OCR"),
+                callback=callback_url,
+                vendor_data=vendor_data
+            )
+
+            kyc_request.session_id = session_result.get("id")
             kyc_request.save()
-            
-            # Devolver respuesta basada en la documentación
+
             return Response({
                 "message": "Sesión KYC creada con éxito",
-                "session_id": session_data.get("id"),
-                "verification_url": session_data.get("url"),
-                "expires_at": session_data.get("expires_at")  # Según docs es 'expires_at', no 'expiration'
+                "session_id": session_result.get("id"),
+                "verification_url": session_result.get("url"),
+                "expires_at": session_result.get("expires_at")
             }, status=status.HTTP_201_CREATED)
-        except requests.exceptions.RequestException as error:
-            # Log error completo para diagnóstico
-            print(f"Error completo al crear sesión Didit: {error}")
-            
-            # Si hay respuesta con mensaje de error, mostrarla
-            error_detail = str(error)
-            if hasattr(error, 'response') and error.response is not None:
-                try:
-                    error_detail = error.response.json()
-                except:
-                    error_detail = error.response.text
-            
-            # Actualizar a estado fallido en caso de error
-            kyc_request.delete()  # Eliminar la solicitud fallida
-            
-            return Response({"error": f"Error al crear la sesión: {error_detail}"}, 
-                           status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-# Webhook para recibir actualizaciones de Didit
+        except Exception as e:
+            kyc_request.delete()
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 @csrf_exempt
 def didit_webhook(request):
+    """
+    Webhook de Didit para actualizar el estado de verificación KYC.
+    """
     if request.method != "POST":
         return JsonResponse({"error": "Método no permitido"}, status=405)
 
-    # Verificar firma según documentación
-    firma_recibida = request.headers.get("X-Signature")
-    if not firma_recibida:
-        return JsonResponse({"error": "Firma no proporcionada"}, status=400)
+    payload = request.body
+    signature = request.headers.get("X-Signature")
 
-    cuerpo = request.body
-    firma_calculada = hmac.new(
+    if not signature:
+        return JsonResponse({"error": "Falta la firma"}, status=400)
+
+    expected_signature = hmac.new(
         settings.DIDIT_WEBHOOK_SECRET.encode(),
-        cuerpo,
+        payload,
         hashlib.sha256
     ).hexdigest()
 
-    if not hmac.compare_digest(firma_recibida, firma_calculada):
-        return JsonResponse({"error": "Firma inválida"}, status=403)
+    if not hmac.compare_digest(signature, expected_signature):
+        return JsonResponse({"error": "Firma inválida"}, status=401)
 
     try:
-        datos = json.loads(cuerpo)
-        session_id = datos.get("id")  # Según docs es 'id', no 'session_id'
-        nuevo_estado = datos.get("status")
-        
-        if not session_id or not nuevo_estado:
-            return JsonResponse({"error": "Datos incompletos en la solicitud"}, status=400)
-        
-        # Mapear los estados según la documentación:
-        # https://docs.didit.me/identity-verification/api-reference/webhook
-        estado_mapeado = "pending"
-        if nuevo_estado == "COMPLETED":
-            estado_mapeado = "approved"
-        elif nuevo_estado in ["FAILED", "EXPIRED", "REJECTED"]:
-            estado_mapeado = "rejected"
-        
-        try:
-            kyc_request = KYCRequest.objects.get(session_id=session_id)
-            kyc_request.status = estado_mapeado
-            kyc_request.save()
-            
-            # Aquí podrías agregar lógica adicional según el estado
-            
-            return JsonResponse({
-                "success": True,
-                "message": "Webhook procesado correctamente",
-                "status": estado_mapeado
-            })
-            
-        except KYCRequest.DoesNotExist:
+        data = json.loads(payload)
+        session_id = data.get("id")
+        status_didit = data.get("status")
+
+        if not session_id or not status_didit:
+            return JsonResponse({"error": "Datos incompletos"}, status=400)
+
+        estados_mapeados = {
+            "PENDING": "pending",
+            "COMPLETED": "approved",
+            "REJECTED": "rejected",
+            "FAILED": "failed",
+            "EXPIRED": "expired"
+        }
+        estado_mapeado = estados_mapeados.get(status_didit, "pending")
+
+        kyc_request = KYCRequest.objects.filter(session_id=session_id).first()
+        if not kyc_request:
             return JsonResponse({"error": "Sesión no encontrada"}, status=404)
-            
+
+        kyc_request.status = estado_mapeado
+        kyc_request.save()
+
+        return JsonResponse({"message": "Webhook procesado", "status": estado_mapeado})
+
     except json.JSONDecodeError:
-        return JsonResponse({"error": "Formato JSON inválido"}, status=400)
+        return JsonResponse({"error": "JSON inválido"}, status=400)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
 
 @api_view(['GET'])
 def kyc_status(request, session_id=None, document_id=None):
     """
-    Obtener el estado de una verificación KYC por session_id o document_id
+    Obtiene el estado de una verificación KYC usando session_id o document_id.
     """
-    if (session_id):
-        try:
-            kyc = KYCRequest.objects.get(session_id=session_id)
-        except KYCRequest.DoesNotExist:
-            return Response(
-                {"error": "No se encontró ninguna solicitud con ese session_id"},
-                status=status.HTTP_404_NOT_FOUND
-            )
-    elif (document_id):
-        # Buscar la solicitud más reciente para este document_id
-        try:
-            kyc = KYCRequest.objects.filter(document_id=document_id).order_by('-created_at').first()
-            if not kyc:
-                return Response(
-                    {"error": "No se encontró ninguna solicitud con ese document_id"},
-                    status=status.HTTP_404_NOT_FOUND
-                )
-        except Exception as e:
-            return Response(
-                {"error": f"Error al buscar solicitud: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-    else:
-        return Response(
-            {"error": "Debe proporcionar session_id o document_id"},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    
+    kyc = None
+    if session_id:
+        kyc = KYCRequest.objects.filter(session_id=session_id).first()
+    elif document_id:
+        kyc = KYCRequest.objects.filter(document_id=document_id).order_by('-created_at').first()
+
+    if not kyc:
+        return Response({"error": "No se encontró la solicitud"}, status=status.HTTP_404_NOT_FOUND)
+
     return Response({
         "full_name": kyc.full_name,
         "document_id": kyc.document_id,

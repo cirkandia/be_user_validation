@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -25,10 +26,12 @@ SECRET_KEY = 'django-insecure-yb-6-*7y!t4j&%do2d#^i88x9i^x22q*es6w94(10&rq)x=_9e
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0']
+# Actualizar ALLOWED_HOSTS para incluir dominios de Cloudflare
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', 'trout-gt-olympic-criteria.trycloudflare.com']
 
-
-
+# Configuración para detectar correctamente las cabeceras de proxy
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -66,7 +69,7 @@ ROOT_URLCONF = 'KYC_Project.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [os.path.join(BASE_DIR, 'kyc', 'templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [

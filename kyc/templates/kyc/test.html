@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>KYC Test</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            background-color: #f8f9fa;
+            border-left: 5px solid #28a745;
+        }
+        .error {
+            background-color: #f8d7da;
+            border-left: 5px solid #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <h1>KYC Test Interface</h1>
+    
+    <div class="container">
+        <h2>Create KYC Verification</h2>
+        <form id="kycForm">
+            <label for="fullName">Full Name:</label>
+            <input type="text" id="fullName" name="fullName" required>
+            
+            <label for="documentId">Document ID:</label>
+            <input type="text" id="documentId" name="documentId" required>
+            
+            <label for="features">Features:</label>
+            <select id="features" name="features">
+                <option value="FACE,OCR">FACE + OCR (Default)</option>
+                <option value="FACE">FACE only</option>
+                <option value="OCR">OCR only</option>
+                <option value="FACE,OCR,LIVENESS">FACE + OCR + LIVENESS</option>
+            </select>
+            
+            <label for="locale">Locale:</label>
+            <select id="locale" name="locale">
+                <option value="es">Spanish (es)</option>
+                <option value="en">English (en)</option>
+                <option value="pt">Portuguese (pt)</option>
+            </select>
+            
+            <button type="submit">Create KYC Session</button>
+        </form>
+        <div id="kycResult" class="result" style="display: none;"></div>
+    </div>
+    
+    <div class="container">
+        <h2>Check KYC Status</h2>
+        <form id="statusForm">
+            <label for="sessionId">Session ID:</label>
+            <input type="text" id="sessionId" name="sessionId">
+            
+            <label for="docId">Or Document ID:</label>
+            <input type="text" id="docId" name="docId">
+            
+            <button type="submit">Check Status</button>
+        </form>
+        <div id="statusResult" class="result" style="display: none;"></div>
+    </div>
+    
+    <div class="container">
+        <h2>Simulate Webhook</h2>
+        <p>Use <code>python simulate_webhook.py</code> in your terminal to simulate a webhook from Didit.</p>
+    </div>
+    
+    <script>
+        document.getElementById('kycForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const resultDiv = document.getElementById('kycResult');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = 'Processing request...';
+            resultDiv.className = 'result';
+            
+            try {
+                const response = await axios.post('/kyc/api/kyc/', {
+                    full_name: document.getElementById('fullName').value,
+                    document_id: document.getElementById('documentId').value,
+                    features: document.getElementById('features').value,
+                    locale: document.getElementById('locale').value
+                });
+                
+                resultDiv.innerHTML = `
+                    <h3>KYC Session Created!</h3>
+                    <p><strong>Session ID:</strong> ${response.data.session_id}</p>
+                    <p><strong>Verification URL:</strong> <a href="${response.data.verification_url}" target="_blank">${response.data.verification_url}</a></p>
+                    <p><strong>Status:</strong> Pending</p>
+                    <p>Click the link above to complete the verification process.</p>
+                `;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `
+                    <h3>Error!</h3>
+                    <p>${error.response?.data?.error || error.message}</p>
+                `;
+            }
+        });
+
+        document.getElementById('statusForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const resultDiv = document.getElementById('statusResult');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = 'Checking status...';
+            resultDiv.className = 'result';
+            
+            try {
+                const sessionId = document.getElementById('sessionId').value;
+                const docId = document.getElementById('docId').value;
+                
+                let url;
+                if (sessionId) {
+                    url = `/kyc/api/status/session/${sessionId}/`;
+                } else if (docId) {
+                    url = `/kyc/api/status/document/${docId}/`;
+                } else {
+                    throw new Error('Please provide either Session ID or Document ID');
+                }
+                
+                const response = await axios.get(url);
+                
+                resultDiv.innerHTML = `
+                    <h3>KYC Status</h3>
+                    <p><strong>Name:</strong> ${response.data.full_name}</p>
+                    <p><strong>Document ID:</strong> ${response.data.document_id}</p>
+                    <p><strong>Session ID:</strong> ${response.data.session_id}</p>
+                    <p><strong>Status:</strong> ${response.data.status}</p>
+                    <p><strong>Created:</strong> ${new Date(response.data.created_at).toLocaleString()}</p>
+                    <p><strong>Last Updated:</strong> ${new Date(response.data.updated_at).toLocaleString()}</p>
+                `;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `
+                    <h3>Error!</h3>
+                    <p>${error.response?.data?.error || error.message}</p>
+                `;
+            }
+        });
+    </script>
+</body>
+</html>
