@@ -27,7 +27,7 @@ SECRET_KEY = 'django-insecure-yb-6-*7y!t4j&%do2d#^i88x9i^x22q*es6w94(10&rq)x=_9e
 DEBUG = True
 
 # Actualizar ALLOWED_HOSTS para incluir dominios de Cloudflare
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', 'trout-gt-olympic-criteria.trycloudflare.com']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', 'mailed-deal-fiction-oaks.trycloudflare.com']
 
 # Configuración para detectar correctamente las cabeceras de proxy
 USE_X_FORWARDED_HOST = True
@@ -52,6 +52,7 @@ load_dotenv()
 DIDIT_CLIENT_ID = os.getenv('DIDIT_CLIENT_ID')
 DIDIT_CLIENT_SECRET = os.getenv('DIDIT_CLIENT_SECRET')
 DIDIT_WEBHOOK_SECRET = os.getenv('DIDIT_WEBHOOK_SECRET')
+TUNNEL_URL = os.getenv('TUNNEL_URL')  # Usar esta variable en lugar de WEBHOOK_URL
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
