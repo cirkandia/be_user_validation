@@ -5,7 +5,8 @@ from .views import (
     RetrieveSessionAPIView,
     UpdateStatusAPIView,
     kyc_status,
-    kyc_test
+    kyc_test,
+    kyc_details,
 )
 
 app_name = "kyc"
@@ -17,4 +18,5 @@ urlpatterns = [
     path("api/update-status/<str:session_id>/", UpdateStatusAPIView.as_view(), name="didit_update_status"),
     path("api/status/", kyc_status, name="didit_local_status"),
     path("test/", kyc_test, name="kyc_test"),
+    path("api/details/<str:session_id>/", kyc_details, name="kyc_details"),
 ]
