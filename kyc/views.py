@@ -91,77 +91,88 @@ def didit_webhook(request):
     print("✅ Webhook received!")
     print(f"Received data: {request.body.decode('utf-8')}")
     
-
+    # Log for the method used
+    print(f"Method: {request.method}")
     
-    if request.method != "POST":
-        return JsonResponse({"error": "Method not allowed"}, status=405)
+    # Log of the complete request
+    print(f"Request: {request}")
+    
+    
 
-    try:
-        data = json.loads(request.body)
         
-        # Extract main data
-        session_id = data.get("session_id") or data.get("id")
-        didit_status = data.get("status")
 
-        if not session_id or not didit_status:
-            return JsonResponse({"error": "Incomplete data (session_id/id, status)"}, status=400)
-
-        session_details = get_object_or_404(SessionDetails, session_id=session_id)
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
             
-        # Update the status
-        session_details.status = didit_status.lower()
-        
-        # Save nationality, date of birth and document type if available
-        kyc_data = data.get("decision", {}).get("kyc", {})
-        personal_data = session_details.personal_data
-        personal_data.nationality = kyc_data.get("issuing_state_name")
-        date_of_birth = kyc_data.get("date_of_birth")
-        document_type = kyc_data.get("document_type")
-        document_id = kyc_data.get("document_number")
-        last_name = kyc_data.get("last_name")
-        
-        # In didit_webhook, use update_or_create instead of separate operations:
-        personal_data_updates = {}
-        if document_id:
-            personal_data_updates['document_id'] = document_id
-        if date_of_birth:
-            personal_data_updates['date_of_birth'] = date_of_birth
-        if document_type:
-            personal_data_updates['document_type'] = document_type
-        if last_name:
-            personal_data_updates['last_name'] = last_name
-        
-        # Add nationality if it exists
-        if kyc_data.get("issuing_state_name"):
-            personal_data_updates['nationality'] = kyc_data.get("issuing_state_name")
+            # Extract main data
+            session_id = data.get("session_id") or data.get("id")
+            didit_status = data.get("status")
 
-        if personal_data_updates:
-            UserDetails.objects.filter(id=session_details.personal_data.id).update(**personal_data_updates)
-            # Refresh the instance from the database
-            personal_data.refresh_from_db()
-        
-        personal_data.save()
-        
-        # If the status is "completed", get the complete decision
-        if didit_status.upper() == "COMPLETED":
-            try:
-                decision_data = retrieve_session(session_id)
-                print(f"✅ Decision data retrieved for session {session_id}")
-            except Exception as e:
-                print(f"⚠️ Error retrieving complete decision: {str(e)}")
-                # Don't fail the webhook if this fails
-        
-        session_details.save()
-        print(f"✅ Webhook processed: Session {session_id}, Status: {didit_status}")
+            if not session_id or not didit_status:
+                return JsonResponse({"error": "Incomplete data (session_id/id, status)"}, status=400)
 
-        return JsonResponse({
-            "message": "Webhook processed", 
-            "status": didit_status,
-            "session_id": session_id
-        })
-    except Exception as e:
-        print(f"❌ Error processing webhook: {str(e)}")
-        return JsonResponse({"error": str(e)}, status=500)
+            session_details = get_object_or_404(SessionDetails, session_id=session_id)
+                
+            # Update the status
+            session_details.status = didit_status.lower()
+            
+            # Save nationality, date of birth and document type if available
+            kyc_data = data.get("decision", {}).get("kyc", {})
+            personal_data = session_details.personal_data
+            personal_data.nationality = kyc_data.get("issuing_state_name")
+            date_of_birth = kyc_data.get("date_of_birth")
+            document_type = kyc_data.get("document_type")
+            document_id = kyc_data.get("document_number")
+            last_name = kyc_data.get("last_name")
+            
+            # In didit_webhook, use update_or_create instead of separate operations:
+            personal_data_updates = {}
+            if document_id:
+                personal_data_updates['document_id'] = document_id
+            if date_of_birth:
+                personal_data_updates['date_of_birth'] = date_of_birth
+            if document_type:
+                personal_data_updates['document_type'] = document_type
+            if last_name:
+                personal_data_updates['last_name'] = last_name
+            
+            # Add nationality if it exists
+            if kyc_data.get("issuing_state_name"):
+                personal_data_updates['nationality'] = kyc_data.get("issuing_state_name")
+
+            if personal_data_updates:
+                UserDetails.objects.filter(id=session_details.personal_data.id).update(**personal_data_updates)
+                # Refresh the instance from the database
+                personal_data.refresh_from_db()
+            
+            personal_data.save()
+            
+            # If the status is "completed", get the complete decision
+            if didit_status.upper() == "COMPLETED":
+                try:
+                    decision_data = retrieve_session(session_id)
+                    print(f"✅ Decision data retrieved for session {session_id}")
+                except Exception as e:
+                    print(f"⚠️ Error retrieving complete decision: {str(e)}")
+                    # Don't fail the webhook if this fails
+            
+            session_details.save()
+            print(f"✅ Webhook processed: Session {session_id}, Status: {didit_status}")
+
+            return JsonResponse({
+                "message": "Webhook processed", 
+                "status": didit_status,
+                "session_id": session_id
+            })
+        except Exception as e:
+            print(f"❌ Error processing webhook: {str(e)}")
+            return JsonResponse({"error": str(e)}, status=500)
+    elif request.method == "GET":
+        
+        return redirect('http://localhost:3000')
+    else:
+        return JsonResponse({"error": "Method not allowed"}, status=405)
 
 class RetrieveSessionAPIView(APIView):
     """
