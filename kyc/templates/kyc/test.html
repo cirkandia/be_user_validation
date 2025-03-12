@@ -63,16 +63,17 @@
     <h1>KYC Test Interface</h1>
     <h2>Create KYC Verification</h2>
     <form id="kycForm">
-      <label for="fullName">Full Name:</label>
-      <input type="text" id="fullName" name="fullName" placeholder="Enter your full name" required>
+      <label for="firstName">First Name:</label>
+      <input type="text" id="firstName" name="firstName" placeholder="Enter your first name" required>
+      <label for="lastName">Last Name:</label>
+      <input type="text" id="lastName" name="lastName" placeholder="Enter your last name" required>
       <label for="documentId">Document ID:</label>
       <input type="text" id="documentId" name="documentId" placeholder="Enter your document ID" required>
+      <label for="documentType">Document Type:</label>
+      <input type="text" id="documentType" name="documentType" placeholder="Enter your document type" required>
       <label for="features">Features:</label>
       <select id="features" name="features">
-        <option value="OCR + NFC + FACE">OCR + NFC + FACE (Default)</option>
-        <option value="FACE">FACE only</option>
         <option value="OCR">OCR only</option>
-        <option value="OCR + NFC">OCR + NFC</option>
       </select>
       <button type="submit">Create KYC Session</button>
     </form>
@@ -88,8 +89,10 @@
 
       try {
         const response = await axios.post('/kyc/api/kyc/', {
-          full_name: document.getElementById('fullName').value,
+          first_name: document.getElementById('firstName').value,
+          last_name: document.getElementById('lastName').value,
           document_id: document.getElementById('documentId').value,
+          document_type: document.getElementById('documentType').value,
           features: document.getElementById('features').value
         });
         // Redirigir automáticamente al usuario a la página de Didit:
