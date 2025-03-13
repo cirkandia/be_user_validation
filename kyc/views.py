@@ -169,8 +169,7 @@ def didit_webhook(request):
             print(f"❌ Error processing webhook: {str(e)}")
             return JsonResponse({"error": str(e)}, status=500)
     elif request.method == "GET":
-        
-        return redirect('http://localhost:3000')
+        return redirect('http://localhost:3000/success')
     else:
         return JsonResponse({"error": "Method not allowed"}, status=405)
 
