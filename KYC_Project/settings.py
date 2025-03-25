@@ -115,6 +115,15 @@ DATABASES = {
     }
 }
 
+
+MIDDLEWARE = [
+    'whitenoise.middleware.WhiteNoiseMiddleware',
+    # otros middleware
+]
+
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+
 # ...existing code...
 
 
