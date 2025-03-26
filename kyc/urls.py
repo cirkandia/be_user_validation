@@ -1,4 +1,5 @@
 from django.urls import path, include
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from .views import (
     DiditKYCAPIView,
     didit_webhook,
@@ -10,6 +11,11 @@ from .views import (
 app_name = "kyc"
 
 urlpatterns = [
+    # Rutas JWT
+    path("api/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
+    path("api/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    
+    
     path("api/kyc/", DiditKYCAPIView.as_view(), name="didit_create_session"),
     path("api/webhook/", didit_webhook, name="didit_webhook"),
     path("api/retrieve/<str:session_id>/", RetrieveSessionAPIView.as_view(), name="didit_retrieve_session"),

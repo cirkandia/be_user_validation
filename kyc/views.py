@@ -8,6 +8,7 @@ from django.shortcuts import render, redirect
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import api_view
 
 from .models import UserDetails, SessionDetails
@@ -21,6 +22,7 @@ class DiditKYCAPIView(APIView):
     POST /kyc/api/kyc/
     Crea una nueva sesión KYC en Didit y la almacena localmente.
     """
+    permission_classes = [IsAuthenticated]
     def post(self, request):
         data = request.data
         print("🔹 Datos recibidos:", data)
@@ -156,6 +158,7 @@ class RetrieveSessionAPIView(APIView):
     GET /kyc/api/retrieve/<session_id>/
     Recupera la información actual de una sesión en Didit.
     """
+    permission_classes = [IsAuthenticated]
     def get(self, request, session_id):
         try:
             data = retrieve_session(session_id)
@@ -168,6 +171,7 @@ class UpdateStatusAPIView(APIView):
     PATCH /kyc/api/update-status/<session_id>/
     Permite actualizar manualmente el estado en Didit.
     """
+    permission_classes = [IsAuthenticated]
     def patch(self, request, session_id):
         new_status = request.data.get("status")
         if not new_status:
