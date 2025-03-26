@@ -27,7 +27,7 @@ SECRET_KEY = 'django-insecure-yb-6-*7y!t4j&%do2d#^i88x9i^x22q*es6w94(10&rq)x=_9e
 DEBUG = True
 
 # Actualizar ALLOWED_HOSTS para incluir dominios de Cloudflare
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', 'conduct-ada-oven-mj.trycloudflare.com']
+
 
 # Configuración para detectar correctamente las cabeceras de proxy
 USE_X_FORWARDED_HOST = True
@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'kyc',
     'rest_framework',
     'rest_framework.authtoken',
+    'corsheaders',
 ]
 import os
 from dotenv import load_dotenv
@@ -53,8 +54,13 @@ DIDIT_CLIENT_ID = os.getenv('DIDIT_CLIENT_ID')
 DIDIT_CLIENT_SECRET = os.getenv('DIDIT_CLIENT_SECRET')
 DIDIT_WEBHOOK_SECRET = os.getenv('DIDIT_WEBHOOK_SECRET')
 TUNNEL_URL = os.getenv('TUNNEL_URL')  # Usar esta variable en lugar de WEBHOOK_URL
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', TUNNEL_URL.replace('https://', '')]
 
 MIDDLEWARE = [
+    #THIRD PARTY MIDDLEWARE
+    'corsheaders.middleware.CorsMiddleware',
+    
+    
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -65,6 +71,7 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'KYC_Project.urls'
+CORS_ALLOW_ALL_ORIGINS = True 
 
 
 REST_FRAMEWORK = {
@@ -99,15 +106,21 @@ WSGI_APPLICATION = 'KYC_Project.wsgi.application'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
 # ...existing code...
+import os
+from dotenv import load_dotenv
+from urllib.parse import urlparse
+
+load_dotenv()
+tmpPostgres = urlparse(os.getenv("DATABASE_URL"))
 
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('DB_NAME', 'kyc_db'),
-        'USER': os.getenv('DB_USER', 'postgres'),
-        'PASSWORD': os.getenv('DB_PASSWORD', ''),
-        'HOST': os.getenv('DB_HOST', 'localhost'),
-        'PORT': os.getenv('DB_PORT', '5432'),
+        'NAME': tmpPostgres.path.replace('/', ''),
+        'USER': tmpPostgres.username,
+        'PASSWORD': tmpPostgres.password,
+        'HOST': tmpPostgres.hostname,
+        'PORT': 5432,
     }
 }
 
