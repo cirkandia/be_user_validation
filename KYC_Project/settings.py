@@ -34,6 +34,9 @@ USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 INSTALLED_APPS = [
+    #Vercel deployment
+    'whiteNoise.runserver_nostatic',
+
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -59,6 +62,9 @@ ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', TUNNEL_URL.replace('https:
 MIDDLEWARE = [
     #THIRD PARTY MIDDLEWARE
     'corsheaders.middleware.CorsMiddleware',
+
+    # Vercel deployment
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     
     
     'django.middleware.security.SecurityMiddleware',
@@ -162,6 +168,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
 STATIC_URL = 'static/'
+
+STATIC_DIRS = [os.path.join(BASE_DIR, 'kyc/static')]
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
