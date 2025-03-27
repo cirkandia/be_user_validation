@@ -35,7 +35,7 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 INSTALLED_APPS = [
     #Vercel deployment
-    'whiteNoise.runserver_nostatic',
+    'whitenoise.runserver_nostatic',
 
     'django.contrib.admin',
     'django.contrib.auth',
