@@ -57,7 +57,7 @@ DIDIT_CLIENT_ID = os.getenv('DIDIT_CLIENT_ID')
 DIDIT_CLIENT_SECRET = os.getenv('DIDIT_CLIENT_SECRET')
 DIDIT_WEBHOOK_SECRET = os.getenv('DIDIT_WEBHOOK_SECRET')
 TUNNEL_URL = os.getenv('TUNNEL_URL')  # Usar esta variable en lugar de WEBHOOK_URL
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', TUNNEL_URL.replace('https://', '')]
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', TUNNEL_URL.replace('https://', ''), '*.vercel.app']
 
 MIDDLEWARE = [
     #THIRD PARTY MIDDLEWARE
