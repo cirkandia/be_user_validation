@@ -55,7 +55,7 @@ DIDIT_CLIENT_SECRET = os.getenv('DIDIT_CLIENT_SECRET')
 DIDIT_WEBHOOK_SECRET = os.getenv('DIDIT_WEBHOOK_SECRET')
 TUNNEL_URL = os.getenv('TUNNEL_URL')  # Usar esta variable en lugar de WEBHOOK_URL
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', TUNNEL_URL.replace('https://', '')]
-
+JWT_TOKEN = os.getenv('JWT_TOKEN')  # Token constante para el cliente Didit
 MIDDLEWARE = [
     #THIRD PARTY MIDDLEWARE
     'corsheaders.middleware.CorsMiddleware',
@@ -81,6 +81,19 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
+}
+
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),  # O el tiempo deseado
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'ROTATE_REFRESH_TOKENS': False,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': SECRET_KEY,  # Usa tu clave secreta de Django
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
 }
 
 TEMPLATES = [
