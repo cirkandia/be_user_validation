@@ -8,6 +8,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.decorators import api_view
 from datetime import datetime, timedelta
 
@@ -17,13 +18,21 @@ from .models import UserDetails, SessionDetails
 from .utils.didit_client import create_session, retrieve_session, update_session_status
 
 def kyc_test(request):
-    return render(request, "kyc/test.html")
+    # Lee el token desde el archivo .env (a través de settings)
+    token = settings.JWT_TOKEN
+    print("JWT_TOKEN:", token)
+    context = {
+        "jwt_token": settings.JWT_TOKEN  # Este es el token constante definido en tu .env
+    }
+    return render(request, "kyc/test.html", context)
 
 class DiditKYCAPIView(APIView):
     """
     POST /kyc/api/kyc/
     Creates a new KYC session in Didit and stores it locally.
     """
+    permission_classes = [AllowAny]
+    authentication_classes = []  # No requiere autenticación para crear una sesión KYC
     def post(self, request):
         data = request.data
         print("🔹 Received data:", data)
@@ -169,8 +178,7 @@ def didit_webhook(request):
             print(f"❌ Error processing webhook: {str(e)}")
             return JsonResponse({"error": str(e)}, status=500)
     elif request.method == "GET":
-        
-        return redirect('http://localhost:3000')
+        return redirect(f'http://localhost:3000/user/{session_id}')
     else:
         return JsonResponse({"error": "Method not allowed"}, status=405)
 

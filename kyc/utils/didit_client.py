@@ -99,4 +99,3 @@ def update_session_status(session_id, new_status, comment=None):
     print("🔹 Update Status Response:", response.text[:500])
     response.raise_for_status()
     return response.json()
-
