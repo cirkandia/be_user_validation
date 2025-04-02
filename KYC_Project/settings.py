@@ -91,7 +91,7 @@ REST_FRAMEWORK = {
 }
 
 
-}
+
 
 TEMPLATES = [
     {
