@@ -34,6 +34,9 @@ USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 INSTALLED_APPS = [
+    #Vercel deployment
+    'whitenoise.runserver_nostatic',
+
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -54,11 +57,16 @@ DIDIT_CLIENT_ID = os.getenv('DIDIT_CLIENT_ID')
 DIDIT_CLIENT_SECRET = os.getenv('DIDIT_CLIENT_SECRET')
 DIDIT_WEBHOOK_SECRET = os.getenv('DIDIT_WEBHOOK_SECRET')
 TUNNEL_URL = os.getenv('TUNNEL_URL')  # Usar esta variable en lugar de WEBHOOK_URL
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0']
-JWT_TOKEN = os.getenv('JWT_TOKEN')  # Token constante para el cliente Didit
+
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0',  '.vercel.app']
+
+
 MIDDLEWARE = [
     #THIRD PARTY MIDDLEWARE
     'corsheaders.middleware.CorsMiddleware',
+
+    # Vercel deployment
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     
     
     'django.middleware.security.SecurityMiddleware',
@@ -75,23 +83,14 @@ CORS_ALLOW_ALL_ORIGINS = True
 
 
 REST_FRAMEWORK = {
+
     'DEFAULT_AUTHENTICATION_CLASSES': [],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.AllowAny',
     ],
 }
 
-from datetime import timedelta
 
-SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),  # O el tiempo deseado
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
-    'ROTATE_REFRESH_TOKENS': False,
-    'BLACKLIST_AFTER_ROTATION': True,
-    'ALGORITHM': 'HS256',
-    'SIGNING_KEY': SECRET_KEY,  # Usa tu clave secreta de Django
-    'AUTH_HEADER_TYPES': ('Bearer',),
-    'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
 }
 
 TEMPLATES = [
@@ -173,6 +172,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
 STATIC_URL = 'static/'
+
+STATIC_DIRS = [os.path.join(BASE_DIR, 'kyc/static')]
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
